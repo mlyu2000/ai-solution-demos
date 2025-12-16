@@ -33,6 +33,7 @@ Together, these models create a robust traffic management system where YOLOv8 pr
 - **Tabbed Interface**: Clean organization with separate tabs for Image Analysis, Video Analysis, and Settings
 - **Session State Management**: Maintains analysis results throughout the session
 - **Responsive Design**: Wide layout with column-based organization for better user experience
+- **Result Data Export to RDBMS**: Writing Video Analysis metadata to external hosted RDBMS
 
 ## Architecture
 
