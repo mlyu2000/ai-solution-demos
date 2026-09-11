@@ -1,0 +1,72 @@
+# ============================================================
+# Application image
+# ============================================================
+images:
+  frontend:
+    repository: "fcaliva/protein-binder-design"
+    pullPolicy: "IfNotPresent"
+    tag: "v0.5.4"
+
+# NVIDIA API Key (set via K8s secret in production)
+nvidia:
+  apiKey: "nvapi-.."
+
+# ============================================================
+# Proxy configuration (for clusters behind corporate proxy)
+# ============================================================
+proxy:
+  enabled: false
+  env:
+    - name: HTTP_PROXY
+      value: ""
+    - name: http_proxy
+      value: ""
+    - name: HTTPS_PROXY
+      value: ""
+    - name: https_proxy
+      value: ""
+
+no_proxy:
+  enabled: false
+  env:
+    - name: NO_PROXY
+      value: ""
+    - name: no_proxy
+      value: ""
+
+
+
+# ============================================================
+# Resource limits & requests
+# ============================================================
+resources:
+  frontend:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# ============================================================
+# Service ports
+# ============================================================
+service:
+  frontendPort: 8080
+  frontendTargetPort: 8080
+
+# ============================================================
+# EZUA settings (HPE Private Cloud AI ingress)
+# ============================================================
+ezua:
+  domainName: "${DOMAIN_NAME}"
+  virtualService:
+    endpoint: "protein-binder-design.${DOMAIN_NAME}"
+    istioGateway: "istio-system/ezaf-gateway"
+
+# ============================================================
+# SSL certificates policy
+# ============================================================
+certificatesPolicy:
+  enabled: false
+  env: []

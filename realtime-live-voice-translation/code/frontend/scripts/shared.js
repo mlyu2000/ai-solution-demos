@@ -1,0 +1,202 @@
+(() => {
+    const LANGUAGE_OPTIONS = [
+        { code: "en", label: "English", nativeLabel: "English", popular: true },
+        { code: "es", label: "Spanish", nativeLabel: "Español", popular: true },
+        { code: "pt", label: "Portuguese", nativeLabel: "Português", popular: true },
+        { code: "fr", label: "French", nativeLabel: "Français", popular: true },
+        { code: "de", label: "German", nativeLabel: "Deutsch", popular: true },
+        { code: "it", label: "Italian", nativeLabel: "Italiano", popular: true },
+        { code: "zh", label: "Chinese", nativeLabel: "中文", popular: true },
+        { code: "ja", label: "Japanese", nativeLabel: "日本語", popular: true },
+        { code: "ko", label: "Korean", nativeLabel: "한국어", popular: true },
+        { code: "ar", label: "Arabic", nativeLabel: "العربية", popular: true, rtl: true },
+        { code: "hi", label: "Hindi", nativeLabel: "हिन्दी", popular: true },
+        { code: "vi", label: "Vietnamese", nativeLabel: "Tiếng Việt", popular: true },
+        { code: "ru", label: "Russian", nativeLabel: "Русский", popular: true },
+        { code: "da", label: "Danish", nativeLabel: "Dansk", popular: false },
+        { code: "fi", label: "Finnish", nativeLabel: "Suomi", popular: false },
+        { code: "ms", label: "Malay", nativeLabel: "Bahasa Melayu", popular: false },
+        { code: "km", label: "Khmer", nativeLabel: "ភាសាខ្មែរ", popular: false },
+        { code: "th", label: "Thai", nativeLabel: "ภาษาไทย", popular: false },
+        { code: "tr", label: "Turkish", nativeLabel: "Türkçe", popular: false },
+        { code: "no", label: "Norwegian", nativeLabel: "Norsk", popular: false }
+    ];
+
+    const languageMap = new Map(LANGUAGE_OPTIONS.map((language) => [language.code, language]));
+
+    function resolveBackendHttpBase() {
+        const params = new URLSearchParams(window.location.search);
+        const explicit = (params.get("backend") || "").trim();
+        if (explicit) return explicit.replace(/\/$/, "");
+
+        const isLocalHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+        if (isLocalHost && window.location.port && window.location.port !== "8000") {
+            return `${window.location.protocol}//${window.location.hostname}:8000`;
+        }
+
+        return window.location.origin;
+    }
+
+    function resolveBackendWsUrl(httpBase) {
+        const base = new URL(httpBase);
+        base.protocol = base.protocol === "https:" ? "wss:" : "ws:";
+        base.pathname = "/ws/translate";
+        base.search = "";
+        base.hash = "";
+        return base.toString();
+    }
+
+    function escapeHtml(text) {
+        return (text || "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function languageName(code) {
+        const normalized = (code || "").trim().toLowerCase();
+        return languageMap.get(normalized)?.label || normalized.toUpperCase() || "Unknown";
+    }
+
+    function formatTurnTime(ts) {
+        if (!ts) return "";
+        return new Date(ts).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+        });
+    }
+
+    function statusLabel(item) {
+        if (item?.is_final) return "Final";
+        if (item?.status === "refining") return "Refining";
+        return "Listening";
+    }
+
+    function statusToneClass(item) {
+        if (item?.is_final) return "is-final";
+        if (item?.status === "refining") return "is-refining";
+        return "is-listening";
+    }
+
+    function isValidRoomCode(roomId) {
+        return /^[a-z0-9-]{8,64}$/i.test((roomId || "").trim());
+    }
+
+    function extractFilenameFromResponse(response, fallback = "meeting_package.zip") {
+        const disposition = response.headers.get("Content-Disposition") || "";
+        const match = disposition.match(/filename="?([^";]+)"?/i);
+        return match ? match[1] : fallback;
+    }
+
+    function triggerBlobDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    window.RealtimeTranslationShared = Object.freeze({
+        LANGUAGE_OPTIONS,
+        escapeHtml,
+        extractFilenameFromResponse,
+        formatTurnTime,
+        isValidRoomCode,
+        languageName,
+        resolveBackendHttpBase,
+        resolveBackendWsUrl,
+        statusLabel,
+        statusToneClass,
+        triggerBlobDownload
+    });
+})();
+
+(() => {
+    function initFullscreenToggle() {
+        const box = document.querySelector(".translation-box");
+        const btn = document.getElementById("liveFullscreenBtn");
+        if (!box || !btn) return;
+
+        function setFullscreen(on) {
+            box.classList.toggle("is-fullscreen", on);
+            document.body.classList.toggle("fs-lock", on);
+            btn.setAttribute("aria-expanded", String(on));
+            btn.setAttribute("aria-label", on ? "Collapse live transcript" : "Expand live transcript");
+            btn.title = on ? "Exit fullscreen" : "Fullscreen";
+            if (!on) {
+                requestAnimationFrame(() => {
+                    const center = document.getElementById("center");
+                    if (center) center.scrollTo({ top: 0 });
+                });
+            }
+        }
+
+        btn.addEventListener("click", () => {
+            setFullscreen(!box.classList.contains("is-fullscreen"));
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && box.classList.contains("is-fullscreen")) {
+                setFullscreen(false);
+            }
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initFullscreenToggle);
+    } else {
+        initFullscreenToggle();
+    }
+})();
+
+(() => {
+    function initThemeToggle() {
+        const btn = document.getElementById("themeToggleBtn");
+        if (!btn) return;
+        const root = document.documentElement;
+
+        function current() {
+            return root.dataset.theme === "light" ? "light" : "dark";
+        }
+
+        function sync() {
+            const t = current();
+            btn.setAttribute("aria-pressed", String(t === "light"));
+            btn.setAttribute("aria-label", t === "light" ? "Switch to dark theme" : "Switch to light theme");
+        }
+
+        sync();
+
+        btn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const next = current() === "light" ? "dark" : "light";
+            root.dataset.theme = next;
+            try { localStorage.setItem("rt-theme", next); } catch (e) {}
+            sync();
+        });
+
+        try {
+            const mq = window.matchMedia("(prefers-color-scheme: light)");
+            if (typeof mq.addEventListener === "function") {
+                mq.addEventListener("change", (e) => {
+                    if (!localStorage.getItem("rt-theme")) {
+                        root.dataset.theme = e.matches ? "light" : "dark";
+                        sync();
+                    }
+                });
+            }
+        } catch (e) {}
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initThemeToggle);
+    } else {
+        initThemeToggle();
+    }
+})();

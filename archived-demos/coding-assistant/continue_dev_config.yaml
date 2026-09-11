@@ -1,0 +1,36 @@
+name: Local Assistant
+version: 1.0.0
+schema: v1
+models:
+  # Add custom models here START #
+  # Reference: https://docs.continue.dev/reference
+  - name: open-webui
+    provider: openai
+    apiBase: https://open-webui-pipelines.<DOMAIN-NAME>
+    model: code_genearation_pipeline
+    apiKey: 0p3n-w3bu!
+    env:
+      useLegacyCompletionsEndpoint: false    
+    roles:
+      - chat
+      - edit
+      - apply
+    requestOptions:
+      verifySsl: false
+  - name: coder_llm
+    provider: vllm
+    apiBase: <MODEL_ENDPOINT>/v1
+    model: MODEL_NAME 
+    apiKey: ***********************
+    roles:
+      - autocomplete
+    requestOptions:
+      verifySsl: false                              
+context:
+  - provider: code
+  - provider: docs
+  - provider: diff
+  - provider: terminal
+  - provider: problems
+  - provider: folder
+  - provider: codebase
