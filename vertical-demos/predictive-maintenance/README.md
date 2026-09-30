@@ -1,141 +1,155 @@
-# Predictive Maintenance Demo
+# **Predictive Maintenance**
 
-A gen-AI powered predictive maintenance application built with Streamlit, featuring three core capabilities:
+| Owner                       | Name                              | Email                                     |
+| ----------------------------|-----------------------------------|-------------------------------------------|
+| Use Case Owner              | Isabelle Steinhauser              | isabelle.steinhauser@hpe.com              |
+| PCAI Deployment Owner       | Isabelle Steinhauser              | isabelle.steinhauser@hpe.com              |
 
-1. **Resolution Prediction**: Leverages LLaMA models to predict maintenance resolutions based on historical ticket data and embeddings
-2. **Ticket Classification**: Uses BERT-based models to automatically classify maintenance tickets into appropriate categories
-3. **Network Inspection OCR**: Employs Qwen VL models to extract and analyze text from network equipment photos for diagnostic purposes
+## Abstract
 
-![Maintenance use case workflow](./assets/overview.png)
+This demo shows how to train a model for predictive maintenance on HPEs PCAI leveraging Jupyter Notebook Server, track the training with MLFlow, package it with bentoML and then deploy it via MLIS. 
 
-[Demo](https://storage.googleapis.com/ai-solution-engineering-videos/public/Predictive%20Maintenance%20Demo.mp4)
 
-## Project Structure
+#### This repository contains steps for training a predictive maintenance model for the manufacturing industry. Of course any model can be trained of PCAI. The model packaging and deployment process will stay similar. The Jupyter Notebook is based on a Kaggle example, the dataset used is also from Kaggle. https://www.kaggle.com/code/sharmageetika/predictive-maintenance/notebook 
 
-```
-.
-├── pcai-custom-framework/
-│   ├── logo.jpg                    # App logo for PCAI deployment
-│   └── predictive-maintenance-0.1.8.tgz  # Custom packaged Helm chart for deployment on PCAI via Import Framework
-├── assets/
-│   ├── HPE-logo-2025.png          # HPE logo for UI branding
-│   └── Overview.png               # Overview of the solution demo   
-├── data/
-│   ├── test-image.jpg             # Sample network equipment image for OCR testing
-│   └── test-tickets.csv           # Sample ticket dataset for testing and development
-├── model/
-│   └── finetuned_bert/            # Fine-tuned BERT model for ticket classification
-│       ├── config.json            # Model configuration with 9 label classes
-│       ├── model.safetensors      # Model weights in SafeTensors format
-│       └── ...                    # Additional model files (tokenizer, training artifacts)
-├── helm-chart/                    # Kubernetes deployment configuration
-│   ├── Chart.yaml                 # Helm chart metadata
-│   ├── values.yaml                # Default configuration values
-│   └── templates/                 # Kubernetes resource templates
-├── postgresql/                    # Database setup notebooks
-│   ├── 1_create_database.ipynb    # PostgreSQL database creation
-│   ├── 2_insert_csv_psql.ipynb    # CSV data import to PostgreSQL
-│   └── 3_get_psql_as_df.ipynb     # Database query examples
-├── classification.py              # BERT-based ticket classification (9 classes)
-├── config_handler.py              # Configuration file loader
-├── config.yaml                    # Main application configuration
-├── main.py                        # Streamlit web application entry point
-├── ocr.py                         # Qwen VL-based OCR for network inspection
-├── resolution_mttr.py             # LLaMA-based resolution and MTTR prediction
-├── requirements.txt               # Python dependencies
-└── Dockerfile                     # Container build configuration
-```
+## Description
 
-### Key Files by Use Case
+### Overview
 
-#### 1. Ticket Classification (BERT)
-- **`classification.py`**: Core classification logic with 9 predefined classes:
-  - **CL (Commercial Issue)**: Business or billing related problems
-  - **FC (Fast Connector)**: Fiber optic connector issues
-  - **FO (Fiber Optic Problem)**: General fiber cable and optical issues
-  - **HD (Hardware Problem)**: Physical equipment failures
-  - **HP (In-House Problem)**: Internal infrastructure issues
-  - **PE (Power Problem)**: Electrical and power supply issues
-  - **PM (Public Complaint)**: Customer complaints and public grievances
-  - **SW (Software Problem)**: Software, firmware, and configuration issues
-  - **UNKNOWN FAULT**: Unclassified or unclear issues
-- **`artifacts/label_encoder.pkl`**: Maps model outputs to human-readable class names
-- **`model/finetuned_bert/`**: Fine-tuned BERT model trained on telecom maintenance tickets
+We are building a predictive maintenance use case for production machines.
 
-#### 2. Resolution & MTTR Prediction (LLaMA)
-- **`resolution_mttr.py`**: Uses sentence embeddings and LLaMA models for intelligent resolution suggestions
-- **`artifacts/embeddings.npy`**: Pre-computed embeddings for similarity-based retrieval
-- **External LLaMA API**: Configured through `config.yaml` for text generation
+The dataset we are analyzing contains the following data points:
+- Product IDs
+- Types (Product Quality L for Low, M for Medium, H for High)
+- Air temperature
+- Process Temperature
+- Rotational Speed
+- Tool wear
+- Machine failure
+- tool wear failure (TWF)
+- heat dissipation failure (HDF)
+- power failure (PWF)
+- overstrain failure (OSF)
+- random failures (RNF)
 
-#### 3. Network Inspection OCR (Qwen VL)
-- **`ocr.py`**: Vision-language model integration for extracting metrics from equipment images
-- **`data/test-image.jpg`**: Sample network monitoring dashboard screenshot
-- **External Qwen VL API**: Configured through `config.yaml` for multimodal inference
+We will be analyzing the dataset first, to clean it and decide which datapoints to drop and which to keep, then we will train our model, and at the end packaging and deploying the model to run it with HPE MLIS. With the inputs of air_temperature_k", process_temperature_k, rotational_speed_rpm, torque_nm and tool_wear_min the model will be able to predict the machine failure and probability.
 
-#### 4. Web Application
-- **`main.py`**: Streamlit interface with tabbed navigation for all three use cases
-- **`config_handler.py`**: Dynamic configuration management for API endpoints
-- **`config.yaml`**: Central configuration file for all model endpoints and settings
+![Use Case Overview](https://github.com/ai-solution-eng/ai-solution-demos/blob/main/vertical-demos/predictive-maintenance/img/PredictiveMaintenanceDemo.jpg)
 
-## Helm Chart Deployment
+**Demo overview video**
+[Demo Video](https://storage.googleapis.com/ai-solution-engineering-videos/public/predictive-maintenance-demo.mp4)
 
-This application is packaged as a Kubernetes Helm chart designed for deployment on HPE PCAI infrastructure with Istio service mesh integration.
+**Tools and frameworks used:**
 
-### EZUA Integration
+* Jupyter Notebook
+* HPE MLIS
+* MLFlow
+* local S3 storage
 
-The Helm chart includes EZUA (HPE's application orchestration platform) integration through:
+## Deployment
 
-- **VirtualService Configuration**: Automatically configures Istio VirtualService for external access
-- **Gateway Integration**: Routes traffic through `istio-system/ezaf-gateway`
-- **Dynamic Endpoints**: Supports `${DOMAIN_NAME}` variable substitution for flexible domain configuration
+### Prerequisites
+In newer AIE versions the S3 Data can be browsed in the UI. We have provided a Notebook in order to upload programmatically a file to that S3 storage. Tested with AIE 1.9, 1.10, 1.12, older versions might still work.
 
-### Key Features
+We need one free GPU to run the model.
 
-- **ConfigMap Mounting**: Application configuration mounted as ConfigMap for runtime flexibility
-- **Istio Service Mesh**: Native integration with Istio for traffic management and security
-- **Resource Management**: Configured with appropriate CPU/memory limits for ML workloads
-- **Health Checks**: Built-in liveness and readiness probes for Kubernetes orchestration
-- **HPE PCAI Optimized**: Tailored for HPE Private Cloud AI infrastructure requirements
+### Installation and configuration
+### **1. Create a Jupyter Notebook Server**
 
-### Deployment
+The default Jupyter Notebook Server is a bit low on resources, especially if you want to try out the Hyperparameter Tuning. Therefore we are creating a new Jupyter Notebook Server.
 
-Two assets required for the app deployment on PCAI via "Import Framework" are:
+- Navigate to **Notebooks**
+- On the top select your **user Project** (applicable with AIE 1.9 for lower versions you can skip this)
+- Click **New Notebook Server**
 
-1. The packaged helm chart: ./assets/predictive-maintenance-0.1.8.tgz
-2. The app logo: ./assets/logo.png
+Fill in the details
+- Any name 
+- JupyterLab
+- Select as Image the jupyter-tensorflow-full from the DropDown, eg ezmeral-common/hpe-kubeflow/notebooks/jupyter-tensorflow-full:aie-1.10.0-fdfeb8a0 
+- At least 2 CPU, for example 5
+- At least 5Gi Memory, for example 15Gi
+- No GPU
 
-### Testing: 
+Hit Launch.
 
-- For ticket resolution prediction & classification, refer to the notebooks in ./postgresql to set up a table data in PostgreSQL. You can deploy PostgreSQL on the same PCAI cluster using [this framework](https://github.com/ai-solution-eng/frameworks/tree/main/postgresql). 
+### **2. Prep your Notebook**
 
-- For demoing the OCR use case, use the test image under ./data/test-image.jpg. Hint: You might need to add this sentence to the existing template suggested prompts in case the decimals are not properly identified.
+To Prep your Notebook Server you will first need to connect to your JupyterNotebook Server. As soon as the status switched to running you can click on the name of it in order to open it.
 
-```yaml
-Make sure a comma in between digits is treated as "." or decimal.
-```
+You can either download the necessary files from here or you could also clone the repos via the GitHub integration on the very left side.
 
-# Access via configured domain
-# Application will be available at: predictive-maintenance.${DOMAIN_NAME}
 
-The application supports dynamic endpoint configuration through the UI, allowing runtime updates to ML inference server URLs and authentication tokens without requiring redeployment.
+### **3. Train your model**
 
-## HPE PCAI Integration
+In order to train your model execute the cells within the predictive-maintenance_model-training Notebook. Each step is described within the notebook in Markdown. The hyperparamter tuning section in the code can also be commented out and skipped as it takes a moment.
 
-### Bring Your Own Application (BYOA)
+The output will be in the end a .pkl file.
 
-For detailed instructions on deploying custom applications to HPE PCAI using the import framework, refer to:
-- [BYOA Tutorials](https://github.com/HPEEzmeral/byoa-tutorials) - Step-by-step guides for bringing your own applications to PCAI
+### **4. Package your model with BentoML**
 
-### Model Deployment
+Open a terminal at /shared/predictive-maintenance
+Install libs with pip install -r requirements.txt
+Save model with python3 import_model.py
+Make sure the setup.sh script is executable, for example by running chmod 777 setup.sh
 
-To deploy and manage ML models on HPE PCAI infrastructure:
-- [HPE MLIS Documentation](https://docs.ai-solutions.ext.hpe.com/products/mlis/latest/) - Complete guide for ML inference services on PCAI
+Run bentoml build -f bentofile.yaml in terminal
+Run bentoml list and identify the model built
+Serve this model with bentoml serve YOURMODELTAG
+Open a new terminal window and send a CURL request, response should be{"machine_failure_prediction":1,"machine_failure_probability":1.0,"model_classes":[0,1]} It’s best if you copy from the curltotestbentoserve.txtto avoid accidental characters from this ReadMe
+curl -X POST "http://127.0.0.1:3000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{"air_temperature_k":300.0,"process_temperature_k":310.0,"rotational_speed_rpm":1200,"torque_nm":70.0,"tool_wear_min":250}'
+Run bentoml export YOURMODELTAG this creates a .bento file
 
-### Acknowledgement:
-- HPE GSE Team - Original use case development.
-- [Roh Geun Tak](https://github.com/rohgeuntak76) - Migrating the helm chart over to PCAI.
-- [Daniel Cao](https://github.com/caovd) - Solution architect for designing, testing, adapting and demoing these use cases on PCAI. 
+### **5. Store your model in local S3 storage**
 
-### Contribution: 
-- No contribution/further development is expected except for POC/demo purposes.
+Navigate to Data Engineering > Data Sources > Object Store Data
 
+If you can click **Browse** use this UI to create a new Bucket and upload your .bento file.
+
+If not (your AIE version does not support it yet) use the S3-Helper.ipynb to create a bucket, per default testbucket, and copy the file there.
+
+### **6. Model Deployment**
+**6.1 Create a Model Registry**
+Navigate to Tools & Frameworks > HPE MLIS (in earlier version Tab Data Science).
+
+Within MLIS create a Internal S3 registry:
+
+- Name: locals3
+- Object store: local-s3 from dropdown
+- Bucket: testbucket
+
+**6.2 Create a Model Package on HPE MLIS.**
+
+Within MLIS add a Packaged Model with:
+
+- Name: predictive-maintenance
+- Registry: locals3
+- Model format: bento-archive
+- URL: s3://YOURBUCKET/YOUR.BENTOFILE
+- (for 1.9 and greater) Model category: other
+- (for 1.9 and greater) Enable local caching
+- Resource Template: Custom
+- CPU: 1-> 4
+- Memory: 10Gi -> 30Gi
+- GPU: 1 -> 1
+- Arguments: --model /mnt/models --port 8080 
+
+**6.3 Deploy your Model**
+
+You can navigate to GenAI> Model Catalog and click on **Deploy** on the freshly created Model. As Scaling Policy you can for example pick Fixed 1.
+
+### **7. Interact with your Model**
+
+In order to interact with your deployed model, you need next to the Endpoint also a Token. In order to retrieve those navigate to GenAI> Model Endpoints. Identify your Model and click on its name. On the buttom you can create a new Token for this model, and on the top you can find the Model Endpoint.
+
+The curl command goes to the Model Endpoint you copy adding /predict. 
+
+It’s best if you copy from the curltotestbentoserve.txtto avoid accidental characters from this ReadMe
+
+curl -X POST "YOURMODELENDPOINT/predict" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOURTOKEN" \
+  -d '{"air_temperature_k":300.0,"process_temperature_k":310.0,"rotational_speed_rpm":1200,"torque_nm":70.0,"tool_wear_min":250}'
+
+With that we are hosting our custom trained predictive maintenance model in HPEs MLIS, being able to define automatic scaling.
